@@ -1,5 +1,7 @@
 import fnmatch
 import re
+import sys
+import argparse
 
 DEFAULT_FILTER_SYNTAX = 'glob'
 
@@ -61,6 +63,7 @@ syntax: regexp
 '''
     f.seek(0)
     return f
+
  
 def load_filter_fh(f):
     """
@@ -104,6 +107,49 @@ def match_filter(filter, str):
     return False
 
 
-if __name__ == "__main__":
+def filter_strings(filter, strings, is_whitelist=True):
+    """
+    >>> filter = load_filter_fh(create_test_filter_fh())
+    >>> filter_strings(filter, ['foofoo1', 'head.jpg', 'foo', 'bar'])
+    ['foofoo1', 'head.jpg']
+    >>> filter_strings(filter, ['foofoo1', 'head.jpg', 'foo', 'bar'], False)
+    ['foo', 'bar']
+    """
+    print "strings: ",
+    print strings
+    return [x for x in strings if match_filter(filter, x) == is_whitelist]
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Process ignore list')
+    parser.add_argument('--test', action='store_true')
+    parser.add_argument('--black-list', dest='is_whitelist', action='store_false')
+    parser.add_argument('--white-list', dest='is_whitelist', action='store_true', default=False)
+    parser.add_argument('--separator', help='Output separator default: newline', default='\n')
+    parser.add_argument('--pattern-file', required=True)
+    parser.add_argument('paths', nargs='*') 
+    process_args(parser.parse_args())
+
+
+def process_args(args):
+    if args.test:
+        test()
+        return
+    
+    filter = load_filter(args.pattern_file) 
+    if (args.paths):
+        paths = args.paths
+    else:
+        paths = [x.rstrip() for x in sys.stdin.readlines()]
+        
+    print args.separator.join(filter_strings(filter, paths, args.is_whitelist))
+    
+
+def test():
     import doctest
     doctest.testmod()
+
+
+if __name__ == "__main__":
+    main()
+
