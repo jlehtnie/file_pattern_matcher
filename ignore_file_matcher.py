@@ -150,7 +150,9 @@ def process_args(args):
     else:
         paths = [x.rstrip() for x in sys.stdin.readlines()]
 
-    print args.separator.join(filter_strings(filter, paths, args.opt_ignore))
+    result = filter_strings(filter, paths, args.opt_ignore)
+    if result:
+        print args.separator.join(result)
 
 if __name__ == "__main__":
     main()
