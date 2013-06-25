@@ -1,13 +1,15 @@
-#   Written in 2013 by Jukka Lehtniemi 
+#!/usr/bin/python
+
+#   Written in 2013 by Jukka Lehtniemi
 #
 #   To the extent possible under law, the author(s) have
 #   dedicated all copyright and related and neighboring rights
 #   to this software to the public domain worldwide. This
-#   software is distributed without any warranty. 
-#   
+#   software is distributed without any warranty.
+#
 #   You should have received a copy of the CC0 Public Domain
 #   Dedication along with this software. If not, see
-#   <http://creativecommons.org/publicdomain/zero/1.0/>. 
+#   <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 import fnmatch
 import re
@@ -53,7 +55,7 @@ def get_regex(syntax, line):
         s = fnmatch.translate(line)
     else:
         s = line
-    return re.compile(s) 
+    return re.compile(s)
 
 
 def load_filter(filepath):
@@ -75,10 +77,10 @@ syntax: regexp
     f.seek(0)
     return f
 
- 
+
 def load_filter_fh(f):
     """
-    >>> f = create_test_filter_fh() 
+    >>> f = create_test_filter_fh()
     >>> filter = load_filter_fh(f)
     >>> len(filter)
     2
@@ -91,14 +93,14 @@ def load_filter_fh(f):
         line = line.strip()
         if not line:
             continue
-        if line.startswith('#'): 
+        if line.startswith('#'):
             continue
         if line.startswith('syntax'):
             syntax = parse_syntax(line)
             continue
         regexs.append(get_regex(syntax, line))
     return regexs
-                
+
 
 def match_filter(filter, str):
     """
@@ -118,48 +120,39 @@ def match_filter(filter, str):
     return False
 
 
-def filter_strings(filter, strings, is_whitelist=True):
+def filter_strings(filter, strings, opt_ignore=True):
     """
     >>> filter = load_filter_fh(create_test_filter_fh())
-    >>> filter_strings(filter, ['foofoo1', 'head.jpg', 'foo', 'bar'])
-    ['foofoo1', 'head.jpg']
     >>> filter_strings(filter, ['foofoo1', 'head.jpg', 'foo', 'bar'], False)
+    ['foofoo1', 'head.jpg']
+    >>> filter_strings(filter, ['foofoo1', 'head.jpg', 'foo', 'bar'])
     ['foo', 'bar']
     """
-    print "strings: ",
-    print strings
-    return [x for x in strings if match_filter(filter, x) == is_whitelist]
+    return [x for x in strings if match_filter(filter, x) != opt_ignore]
 
 
 def main():
     parser = argparse.ArgumentParser(description='Process ignore list')
-    parser.add_argument('--test', action='store_true')
-    parser.add_argument('--black-list', dest='is_whitelist', action='store_false')
-    parser.add_argument('--white-list', dest='is_whitelist', action='store_true', default=False)
+    parser.add_argument('--keep-match', dest='opt_ignore', action='store_false')
+    parser.add_argument('--ignore-match', dest='opt_ignore', action='store_true', default=True)
     parser.add_argument('--separator', help='Output separator default: newline', default='\n')
     parser.add_argument('--pattern-file', required=True)
-    parser.add_argument('paths', nargs='*') 
+    parser.add_argument('paths', nargs='*')
     process_args(parser.parse_args())
 
 
 def process_args(args):
-    if args.test:
-        test()
-        return
-    
-    filter = load_filter(args.pattern_file) 
+
+    filter = load_filter(args.pattern_file)
+
     if (args.paths):
         paths = args.paths
     else:
         paths = [x.rstrip() for x in sys.stdin.readlines()]
-        
-    print args.separator.join(filter_strings(filter, paths, args.is_whitelist))
-    
 
-def test():
-    import doctest
-    doctest.testmod()
-
+    result = filter_strings(filter, paths, args.opt_ignore)
+    if result:
+        print args.separator.join(result)
 
 if __name__ == "__main__":
     main()
