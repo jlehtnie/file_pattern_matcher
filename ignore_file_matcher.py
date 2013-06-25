@@ -14,7 +14,7 @@
 import fnmatch
 import re
 import sys
-import argparse
+import getopt
 
 DEFAULT_FILTER_SYNTAX = 'glob'
 
@@ -59,8 +59,12 @@ def get_regex(syntax, line):
 
 
 def load_filter(filepath):
-    with open(filepath) as f:
+    f = open(filepath)
+    try:
         filter = load_filter_fh(f)
+    finally:
+        f.close()
+
     return filter
 
 
@@ -130,15 +134,56 @@ def filter_strings(filter, strings, opt_ignore=True):
     """
     return [x for x in strings if match_filter(filter, x) != opt_ignore]
 
+class Args(object): pass
+
+def usage():
+    print >>sys.stderr, '''
+    %s --help | --pattern-file FILE \ 
+        [--keep-match] [--separator] [PATHS...]
+
+    --help          Usage
+    --pattern-file  Patterns to match
+    --separator     Output separator (default: newline)
+    --keep-match    Keep matching and ignore rest
+                    (default: ignore matching and keep rest)
+    
+    PATHS   Filepaths to match against (default: read from stdin)
+''' % sys.argv[0]
 
 def main():
-    parser = argparse.ArgumentParser(description='Process ignore list')
-    parser.add_argument('--keep-match', dest='opt_ignore', action='store_false')
-    parser.add_argument('--ignore-match', dest='opt_ignore', action='store_true', default=True)
-    parser.add_argument('--separator', help='Output separator default: newline', default='\n')
-    parser.add_argument('--pattern-file', required=True)
-    parser.add_argument('paths', nargs='*')
-    process_args(parser.parse_args())
+    try:
+        opts, rest = getopt.getopt(sys.argv[1:], '', 
+                ['help', 'keep-match', 'separator=', 'pattern-file='])
+    except getopt.GetoptError, err:
+        print >>sys.stderr, str(err)
+        sys.exit(2)
+
+    args = Args()
+    args.separator = '\n'
+    args.opt_ignore = True
+    args.pattern_file = None
+
+    for o, a in opts:
+        if o in ['-h', '--help']:
+            usage()
+            sys.exit(2)
+        elif o in ['-p', '--pattern-file']:
+            args.pattern_file = a
+        elif o in ['-k', '--keep-match']:
+            args.opt_ignore = False
+        elif o in ['-s', '--separator']:
+            args.separator = a
+        else:
+            assert False, 'unhandled option'
+
+    if not args.pattern_file:
+        print >>sys.stderr, 'ERROR: Missing mandatory argument pattern-file'
+        usage()
+        sys.exit(2)
+
+
+    args.paths = rest
+    process_args(args)
 
 
 def process_args(args):
