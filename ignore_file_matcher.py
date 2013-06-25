@@ -132,12 +132,17 @@ def filter_strings(filter, strings, opt_ignore=True):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Process ignore list')
-    parser.add_argument('--keep-match', dest='opt_ignore', action='store_false')
-    parser.add_argument('--ignore-match', dest='opt_ignore', action='store_true', default=True)
-    parser.add_argument('--separator', help='Output separator default: newline', default='\n')
-    parser.add_argument('--pattern-file', required=True)
-    parser.add_argument('paths', nargs='*')
+    parser = argparse.ArgumentParser(
+            description='Match filepaths against ignore list')
+    parser.add_argument('--keep-match', dest='opt_ignore', 
+            action='store_false', default=True,
+            help='Keep matching only (default: ignore matching)')
+    parser.add_argument('--separator', 
+            help='Output separator default: newline', default='\n')
+    parser.add_argument('--pattern-file', required=True,
+            help='File with ignore patters')
+    parser.add_argument('paths', nargs='*',
+            help='Paths to match against (default: read from stdin)')
     process_args(parser.parse_args())
 
 
