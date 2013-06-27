@@ -1,16 +1,5 @@
 #!/usr/bin/python
 
-#   Written in 2013 by Jukka Lehtniemi
-#
-#   To the extent possible under law, the author(s) have
-#   dedicated all copyright and related and neighboring rights
-#   to this software to the public domain worldwide. This
-#   software is distributed without any warranty.
-#
-#   You should have received a copy of the CC0 Public Domain
-#   Dedication along with this software. If not, see
-#   <http://creativecommons.org/publicdomain/zero/1.0/>.
-
 import fnmatch
 import re
 import sys
@@ -134,11 +123,10 @@ def filter_strings(filter, strings, opt_ignore=True):
     """
     return [x for x in strings if match_filter(filter, x) != opt_ignore]
 
-class Args(object): pass
 
 def usage():
     print >>sys.stderr, '''
-    %s --help | --pattern-file FILE \ 
+    %s [--help] | [--pattern-file FILE] \
         [--keep-match] [--separator] [PATHS...]
 
     --help          Usage
@@ -146,13 +134,18 @@ def usage():
     --separator     Output separator (default: newline)
     --keep-match    Keep matching and ignore rest
                     (default: ignore matching and keep rest)
-    
+
     PATHS   Filepaths to match against (default: read from stdin)
 ''' % sys.argv[0]
 
-def main():
+
+class Args(object): pass
+
+
+def parse_args():
+
     try:
-        opts, rest = getopt.getopt(sys.argv[1:], '', 
+        opts, rest = getopt.getopt(sys.argv[1:], '',
                 ['help', 'keep-match', 'separator=', 'pattern-file='])
     except getopt.GetoptError, err:
         print >>sys.stderr, str(err)
@@ -164,40 +157,43 @@ def main():
     args.pattern_file = None
 
     for o, a in opts:
-        if o in ['-h', '--help']:
+        if o == '--help':
             usage()
             sys.exit(2)
-        elif o in ['-p', '--pattern-file']:
+        elif o == '--pattern-file':
             args.pattern_file = a
-        elif o in ['-k', '--keep-match']:
+        elif o == '--keep-match':
             args.opt_ignore = False
-        elif o in ['-s', '--separator']:
+        elif o == '--separator':
             args.separator = a
         else:
             assert False, 'unhandled option'
 
-    if not args.pattern_file:
-        print >>sys.stderr, 'ERROR: Missing mandatory argument pattern-file'
-        usage()
-        sys.exit(2)
-
-
     args.paths = rest
-    process_args(args)
+    return args
 
 
 def process_args(args):
-
-    filter = load_filter(args.pattern_file)
 
     if (args.paths):
         paths = args.paths
     else:
         paths = [x.rstrip() for x in sys.stdin.readlines()]
 
-    result = filter_strings(filter, paths, args.opt_ignore)
+    if args.pattern_file:
+        filter = load_filter(args.pattern_file)
+        result = filter_strings(filter, paths, args.opt_ignore)
+    else:
+        result = paths
+
     if result:
         print args.separator.join(result)
+
+
+def main():
+
+    process_args(parse_args())
+
 
 if __name__ == "__main__":
     main()
