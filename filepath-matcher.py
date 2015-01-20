@@ -18,6 +18,7 @@ import argparse
 
 DEFAULT_FILTER_SYNTAX = 'glob'
 
+
 def parse_syntax(line):
     """
     >>> parse_syntax('syntax: glob')
@@ -29,9 +30,9 @@ def parse_syntax(line):
     ...
     Exception: Unknown syntax "none"
     """
-    line = line.replace(':',' ')
+    line = line.replace(':', ' ')
     _, syntax = line.split()
-    if syntax in [ 'glob', 'regexp' ]:
+    if syntax in ['glob', 'regexp']:
         return syntax
     else:
         raise Exception('Unknown syntax "%s"' % syntax)
@@ -58,13 +59,13 @@ def get_regex(syntax, line):
     return re.compile(s)
 
 
-def load_filter(filepath):
+def load_patterns(filepath):
     with open(filepath) as f:
-        filter = load_filter_fh(f)
-    return filter
+        patterns = load_patterns_fh(f)
+    return patterns
 
 
-def create_test_filter_fh():
+def create_test_patterns_fh():
     import StringIO
     f = StringIO.StringIO()
     print >>f, '''
@@ -78,13 +79,13 @@ syntax: regexp
     return f
 
 
-def load_filter_fh(f):
+def load_patterns_fh(f):
     """
-    >>> f = create_test_filter_fh()
-    >>> filter = load_filter_fh(f)
-    >>> len(filter)
+    >>> f = create_test_patterns_fh()
+    >>> patterns = load_patterns_fh(f)
+    >>> len(patterns)
     2
-    >>> filter # doctest:+ELLIPSIS
+    >>> patterns # doctest:+ELLIPSIS
     [<_sre.SRE_Pattern object at 0x...]
     """
     regexs = []
@@ -102,63 +103,90 @@ def load_filter_fh(f):
     return regexs
 
 
-def match_filter(filter, str):
+def match_patterns(patterns, str):
     """
-    >>> filter = load_filter_fh(create_test_filter_fh())
-    >>> match_filter(filter, "barfoo2")
+    >>> patterns = load_patterns_fh(create_test_patterns_fh())
+    >>> match_patterns(patterns, "barfoo2")
     True
-    >>> match_filter(filter, "boobs.jpg")
+    >>> match_patterns(patterns, "boobs.jpg")
     True
-    >>> match_filter(filter, "foo 123")
+    >>> match_patterns(patterns, "foo 123")
     False
-    >>> match_filter(filter, "smiley.gif")
+    >>> match_patterns(patterns, "smiley.gif")
     False
     """
-    for regex in filter:
+    for regex in patterns:
         if regex.search(str):
             return True
     return False
 
 
-def filter_strings(filter, strings, opt_ignore=True):
+def filter_by_patterns(patterns, paths):
     """
-    >>> filter = load_filter_fh(create_test_filter_fh())
-    >>> filter_strings(filter, ['foofoo1', 'head.jpg', 'foo', 'bar'], False)
+    >>> patterns = load_patterns_fh(create_test_patterns_fh())
+    >>> filter_by_patterns(patterns, ['foofoo1', 'head.jpg', 'foo', 'bar'])
     ['foofoo1', 'head.jpg']
-    >>> filter_strings(filter, ['foofoo1', 'head.jpg', 'foo', 'bar'])
-    ['foo', 'bar']
     """
-    return [x for x in strings if match_filter(filter, x) != opt_ignore]
+    return [x for x in paths if match_patterns(patterns, x)]
+
+
+def filter_by_shebang(shebang, paths):
+    result = []
+    for p in paths:
+        with open(p) as f:
+            s = f.readline()
+            if s[0:3] == '#!/' and re.search(shebang, s):
+                result.append(p)
+    return result
 
 
 def main():
     parser = argparse.ArgumentParser(
-            description='Match filepaths against ignore list')
-    parser.add_argument('--keep-match', dest='opt_ignore',
-            action='store_false', default=True,
-            help='Keep matching only (default: ignore matching)')
-    parser.add_argument('--separator',
-            help='Output separator default: newline', default='\n')
-    parser.add_argument('--pattern-file', required=True,
-            help='File with ignore patters')
-    parser.add_argument('paths', nargs='*',
-            help='Paths to match against (default: read from stdin)')
+        description='Match filepaths against rules'
+        )
+    parser.add_argument(
+        '--ignore-match',
+        action='store_true', default=False,
+        help='Ignore matching. (default: keep matching)'
+        )
+    parser.add_argument(
+        '--separator',
+        help='Output separator default: newline', default='\n'
+        )
+    parser.add_argument(
+        '--pattern-file', required=True,
+        help='File with ignore patters'
+        )
+    parser.add_argument(
+        '--shebang',
+        help='Match also if given shebang (regex) is found in file',
+        default=None
+        )
+    parser.add_argument(
+        'paths', nargs='*',
+        help='Paths to match against (default: read from stdin)'
+        )
     process_args(parser.parse_args())
 
 
 def process_args(args):
 
-    filter = load_filter(args.pattern_file)
-
-    if (args.paths):
+    if args.paths:
         paths = args.paths
     else:
         paths = [x.rstrip() for x in sys.stdin.readlines()]
 
-    result = filter_strings(filter, paths, args.opt_ignore)
+    patterns = load_patterns(args.pattern_file)
+    result = filter_by_patterns(patterns, paths)
+
+    if args.shebang:
+        result += filter_by_shebang(args.shebang, paths)
+
+    if args.ignore_match:
+        result = [p for p in paths if p not in result]
+
     if result:
         print args.separator.join(result)
 
 if __name__ == "__main__":
     main()
-
