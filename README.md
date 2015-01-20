@@ -1,4 +1,4 @@
-ignore file matcher
-===================
+filepath matcher
+================
 
 hgignore compatible filepath matcher

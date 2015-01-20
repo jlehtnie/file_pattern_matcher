@@ -154,7 +154,7 @@ def main():
         help='Output separator default: newline', default='\n'
         )
     parser.add_argument(
-        '--pattern-file', required=True,
+        '--pattern-file', 
         help='File with ignore patters'
         )
     parser.add_argument(
@@ -171,13 +171,19 @@ def main():
 
 def process_args(args):
 
+    if not args.pattern_file and not args.shebang:
+        print >> sys.stderr, "ERROR: --pattern-file or --shebang or both required"
+        sys.exit(1)
+
     if args.paths:
         paths = args.paths
     else:
         paths = [x.rstrip() for x in sys.stdin.readlines()]
 
-    patterns = load_patterns(args.pattern_file)
-    result = filter_by_patterns(patterns, paths)
+    result = []
+    if args.pattern_file:
+        patterns = load_patterns(args.pattern_file)
+        result += filter_by_patterns(patterns, paths)
 
     if args.shebang:
         result += filter_by_shebang(args.shebang, paths)
